@@ -1,0 +1,19 @@
+RiskInsight: исправление native Ollama
+
+1. Остановите сервер RiskInsight (Ctrl+C).
+2. Распакуйте папки app и tests из этого ZIP в корень вашего RiskInsight, согласившись заменить app/agent.py и app/config.py.
+3. В .env добавьте/обновите:
+APP_MODE=llm
+LLM_API_STYLE=ollama
+LLM_BASE_URL=http://127.0.0.1:11434
+LLM_MODEL=qwen3:8b
+LLM_TIMEOUT_SECONDS=120
+MAX_OUTPUT_TOKENS=4096
+Сохраните прежний APP_ACCESS_TOKEN.
+4. В новом PowerShell из корня проекта:
+.\.venv\Scripts\python.exe -m scripts.check_llm
+5. После успешной проверки:
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+
+Дополнительные зависимости не нужны. Базы данных и .env не входят в обновление.
+Автоматические проверки: 139 passed (Linux, Python 3.12, native HTTP mock + настоящий MCP). Живая модель Qwen3 после этого изменения в среде разработки не проверена.

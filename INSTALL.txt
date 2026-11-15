@@ -1,0 +1,15 @@
+RiskInsight Ollama CPU v2
+1. Stop the RiskInsight server with Ctrl+C.
+2. Extract app and tests from this ZIP into your RiskInsight directory. Replace app/agent.py and app/config.py.
+3. Keep native Ollama configuration:
+APP_MODE=llm
+LLM_API_STYLE=ollama
+LLM_BASE_URL=http://127.0.0.1:11434
+LLM_MODEL=qwen3:4b
+LLM_TIMEOUT_SECONDS=120
+MAX_OUTPUT_TOKENS=2048
+MAX_CONCURRENT_REQUESTS=1
+4. Run .\.venv\Scripts\python.exe -m scripts.check_llm
+5. If successful, run .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+No new dependencies; databases and .env are not included.
+Automated suite: 141 passed. Live Ollama performance after v2 still needs verification on your computer.
