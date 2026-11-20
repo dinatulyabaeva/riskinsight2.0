@@ -44,30 +44,27 @@ def test_free_question_with_provider_and_real_mcp_over_http(settings, monkeypatc
     def handler(request):
         body = json.loads(request.content)
         calls.append(body)
-        if len(calls) == 1:
-            assert any('get_dataset_context' in m.get('content', '') for m in body['messages'] if m['role']=='system')
-            name, args = 'get_portfolio_summary', {'as_of': '2026-10-31'}
-            message = {'tool_calls': [{'id': 'summary', 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(args)}}]}
-        else:
-            data = json.loads(body['messages'][-1]['content'])
-            calc = data['npl90_calculation']
-            assert calc['numerator_rub'] == 3000 and calc['denominator_rub'] == 4000
-            assert calc['value'] == .75 and calc['dataset_id'] == dataset_id
-            answer = f"DPD 90+ = 3 000 / 4 000 ₽ = 75%. Формула: {calc['formula']}. Дата {calc['as_of']}, набор {dataset_id}. EL недоступен: нет PD/LGD. [T2]"
-            message = {'content': answer}
+        assert any('get_dataset_context' in m.get('content', '') for m in body['messages'] if m['role']=='system')
+        name, args = 'get_portfolio_summary', {'as_of': '2026-10-31'}
+        message = {'tool_calls': [{'id': 'summary', 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(args)}}]}
         return httpx.Response(200, json={'choices': [{'message': message, 'finish_reason': 'stop'}]})
-    async def agent(request, settings):
-        return await run_agent(request, settings, ChatCompletionsProvider(settings, httpx.MockTransport(handler)))
+    async def agent(request, settings, *, memory=None):
+        return await run_agent(request, settings, ChatCompletionsProvider(settings, httpx.MockTransport(handler)), memory=memory)
     monkeypatch.setattr('app.main.run_agent', agent)
     with TestClient(create_app(cfg)) as client:
         dataset_id = client.post('/api/datasets/import?filename=test.xlsx', content=xlsx()).json()['dataset_id']
         res = client.post('/api/chat', json={'question': 'Какая доля просрочки 90+ в моем портфеле?', 'dataset_id': dataset_id})
         assert res.status_code == 200
         answer = res.json()
-        assert answer['mode'] == 'llm' and len(calls) == 2
+        assert answer['mode'] == 'llm' and len(calls) == 1
+        assert answer['provenance']['llm_called']
+        assert answer['provenance']['narrative_source'] == 'mcp_renderer'
         assert answer['trace'][1]['result']['metrics']['npl90_ratio'] == .75
         assert answer['trace'][1]['arguments']['dataset_id'] == dataset_id
-        assert '[T2]' in answer['answer'] and '75%' in answer['answer']
+        assert '[T2]' in answer['answer'] and '75.00%' in answer['answer']
+        calc = answer['trace'][1]['result']['npl90_calculation']
+        assert calc['numerator_rub'] == 3000 and calc['denominator_rub'] == 4000
+        assert calc['value'] == .75 and calc['dataset_id'] == dataset_id
         assert answer['protocol']['events'][0]['method'] == 'initialize'
         assert client.get('/api/dashboard', params={'dataset_id': 'builtin'}).json()['summary']['metrics']['balance_rub'] == 9600
 

@@ -3,7 +3,9 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 import hmac
+import hashlib
 import logging
+import os
 import sqlite3
 import time
 import uuid
@@ -14,6 +16,7 @@ from pydantic import ValidationError
 from . import __version__
 from .agent import AgentError, ChatRequest, SCENARIOS, run_agent
 from .config import ROOT, Settings
+from .conversations import ConversationConflict, ConversationStore
 from .db import seed_database
 from .datasets import DatasetStore
 from .xlsx_import import MAX_UPLOAD_BYTES, import_xlsx, rejected
@@ -49,6 +52,8 @@ def create_app(settings=None):
         app.state.gate = asyncio.Semaphore(settings.max_concurrent)
         app.state.limiter = GlobalLimiter(settings.requests_per_minute)
         app.state.settings = settings
+        app.state.conversations = ConversationStore()
+        app.state.example_lock = asyncio.Lock()
         yield
 
     app = FastAPI(title="RiskInsight API", version=__version__, lifespan=lifespan,
@@ -89,6 +94,33 @@ def create_app(settings=None):
     async def imports():
         return {"imports": await asyncio.to_thread(store.history)}
 
+    @app.get("/api/examples/portfolio-scenarios.xlsx", dependencies=[Depends(authorized)])
+    async def download_example():
+        path = ROOT / "examples/portfolio-scenarios.xlsx"
+        if not path.is_file():
+            raise HTTPException(503, "Учебный файл отсутствует в сборке сервиса")
+        return FileResponse(path, filename=path.name,
+                            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @app.post("/api/datasets/example", dependencies=[Depends(authorized)])
+    async def open_example():
+        # The fixed synthetic source ships with the code. After an ephemeral
+        # host restarts the same button reconstructs it through the importer.
+        async with app.state.example_lock, app.state.gate:
+            path = ROOT / "examples/portfolio-scenarios.xlsx"
+            if not path.is_file():
+                raise HTTPException(503, "Учебный файл отсутствует в сборке сервиса")
+            content = await asyncio.to_thread(path.read_bytes)
+            digest = hashlib.sha256(content).hexdigest()
+            existing = await asyncio.to_thread(store.find_source, digest)
+            if existing:
+                return {"status": "imported", "dataset_id": existing, "reused": True,
+                        "source_sha256": digest, "synthetic": True}
+            report = await asyncio.to_thread(import_xlsx, store, path.name, content)
+            if report["status"] != "imported":
+                raise HTTPException(503, "Учебный файл не прошёл валидацию импорта")
+            return {**report, "reused": False}
+
     @app.post("/api/datasets/import", dependencies=[Depends(authorized)])
     async def upload(request: Request, filename: str = "portfolio.xlsx"):
         async with app.state.gate:
@@ -126,7 +158,11 @@ def create_app(settings=None):
     async def health():
         return {"status": "ok", "version": __version__, "database_exists": settings.db_path.exists(),
                 "mode": settings.mode, "llm_configured": settings.llm_configured,
-                "auth_required": bool(settings.access_token)}
+                "auth_required": bool(settings.access_token),
+                "build_commit": os.getenv("RENDER_GIT_COMMIT", "")[:40] or None,
+                "features": {"conversation_memory": True, "evidence_charts": True, "teaching_dataset": True},
+                "storage": "ephemeral" if os.getenv("RENDER") else "local",
+                "memory": {"max_turns": 6, "ttl_seconds": 3600, "persistent": False}}
 
     @app.get("/api/ready", dependencies=[Depends(authorized)])
     async def ready():
@@ -172,22 +208,42 @@ def create_app(settings=None):
     @app.post("/api/chat", dependencies=[Depends(authorized)])
     async def chat(body: ChatRequest):
         check_dataset(body.dataset_id)
-        if not app.state.limiter.allow():
-            raise HTTPException(429, "Минутный лимит запросов исчерпан", headers={"Retry-After": "60"})
         if settings.mode == "llm" and not settings.llm_configured:
             raise HTTPException(503, "Настройте LLM_API_KEY и LLM_MODEL на сервере")
         rid = uuid.uuid4().hex[:12]
+        conversations = app.state.conversations
         try:
-            async with asyncio.timeout(settings.llm_timeout * (settings.max_rounds + 1) + 45):
-                async with app.state.gate:
-                    result = await run_agent(body, settings)
+            ticket = conversations.ticket(body)
+            async with asyncio.timeout(settings.llm_timeout * (min(settings.max_rounds, 3) + 1) + 45), ticket.lock:
+                if ticket.response is not None:
+                    return {**ticket.response, "cache_hit": True}
+                if not app.state.limiter.allow():
+                    raise HTTPException(429, "Минутный лимит запросов исчерпан", headers={"Retry-After": "60"})
+                conversation, reset = conversations.resolve(body)
+                async with conversation.lock, app.state.gate:
+                    result = await run_agent(body, settings, memory=conversation.memory())
+                    conversations.remember(conversation, body.question, result)
+                    response = {"request_id": rid, **result, "conversation_id": conversation.identifier,
+                                "conversation_reset": reset, "cache_hit": False}
+                    conversations.cache(ticket, response)
+        except ConversationConflict as exc:
+            return JSONResponse({"detail": str(exc), "request_id": rid}, status_code=409)
         except AgentError as exc:
-            raise HTTPException(502 if settings.mode == "llm" else 422, str(exc)) from None
+            status = getattr(exc, "status_code", None) or (502 if settings.mode == "llm" else 422)
+            if status not in {400, 422, 429, 502, 503, 504}:
+                status = 502
+            cooldown = getattr(exc, "retry_after", None)
+            error_headers = {"Retry-After": str(cooldown)} if cooldown is not None and status == 429 else None
+            return JSONResponse({"detail": str(exc), "request_id": rid,
+                                 "trace": getattr(exc, "mcp_trace", []),
+                                 "usage": getattr(exc, "usage", {}),
+                                 "selection_errors": getattr(exc, "selection_errors", [])},
+                                status_code=status, headers=error_headers)
         except TimeoutError:
-            raise HTTPException(504, "Превышен общий тайм-аут анализа") from None
+            return JSONResponse({"detail": "Превышен общий тайм-аут анализа", "request_id": rid}, status_code=504)
         # No prompts, keys, user text or raw data in the application log.
         logger.info("analysis id=%s mode=%s tools=%d ms=%d", rid, settings.mode, len(result["trace"]), result["duration_ms"])
-        return {"request_id": rid, **result}
+        return response
 
     @app.get("/api/methodology", response_class=PlainTextResponse, dependencies=[Depends(authorized)])
     async def methodology():

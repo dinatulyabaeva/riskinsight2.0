@@ -11,24 +11,17 @@ from app.config import Settings
 
 
 def handler(request):
+    # Only the network planner is replaced. Context, selected analytics,
+    # grounded report, chart generation and conversation memory remain real.
     body = json.loads(request.content)
-    evidence = [json.loads(m['content']) for m in body['messages'] if m['role'] == 'tool']
-    if not evidence:
-        name, arguments = 'get_dataset_context', '{}'
-    elif len(evidence) == 1:
-        name, arguments = 'get_portfolio_summary', '{}'
-    else:
-        summary = evidence[-1]
-        calc = summary['npl90_calculation']
-        answer = (f"DPD 90+ = {calc['numerator_rub']} / {calc['denominator_rub']} RUB = {calc['value'] * 100:.2f}%. "
-                  f"Формула: {calc['formula']}. Дата: {calc['as_of']}, набор: {calc['dataset_id']}. [T2]")
-        return httpx.Response(200, json={'choices': [{'message': {'content': answer}, 'finish_reason': 'stop'}]})
-    tool_call = {'id': f'call{len(evidence)}', 'type': 'function', 'function': {'name': name, 'arguments': arguments}}
+    assert any(t['function']['name'] == 'get_portfolio_summary' for t in body['tools'])
+    tool_call = {'id': 'browser-summary', 'type': 'function',
+                 'function': {'name': 'get_portfolio_summary', 'arguments': '{}'}}
     return httpx.Response(200, json={'choices': [{'message': {'tool_calls': [tool_call]}, 'finish_reason': 'tool_calls'}]})
 
 
-async def test_agent(request, settings):
-    return await run_agent(request, settings, ChatCompletionsProvider(settings, httpx.MockTransport(handler)))
+async def test_agent(request, settings, *, memory=None):
+    return await run_agent(request, settings, ChatCompletionsProvider(settings, httpx.MockTransport(handler)), memory=memory)
 
 
 main.run_agent = test_agent

@@ -46,23 +46,27 @@ class Analytics:
         self.dataset_id = dataset_id
         with read_db(self.path) as con:
             meta = dict(con.execute("SELECT key,value FROM metadata"))
-        self.synthetic = meta.get("schema") != "xlsx-v1"
+        # File layout and provenance are independent: a synthetic teaching XLSX
+        # still has snapshot dimensions and must use the XLSX SQL layout.
+        self.uploaded = meta.get("schema") == "xlsx-v1"
+        self.synthetic = meta.get("synthetic", "false" if self.uploaded else "true") == "true"
+        self.source_sha256 = meta.get("source_sha256")
         self.version = meta.get("dataset_version", DATASET_VERSION)
-        self.base = BASE if self.synthetic else " FROM snapshots s "
-        self.dimension_alias = "l" if self.synthetic else "s"
+        self.base = " FROM snapshots s " if self.uploaded else BASE
+        self.dimension_alias = "s" if self.uploaded else "l"
 
     @lru_cache(maxsize=8)
     def context(self):
         with read_db(self.path) as con:
             dates = [r[0] for r in con.execute("SELECT DISTINCT as_of FROM snapshots ORDER BY as_of")]
-            table = "loans" if self.synthetic else "snapshots"
+            table = "snapshots" if self.uploaded else "loans"
             cats = {d: [r[0] for r in con.execute(f"SELECT DISTINCT {d} FROM {table} WHERE {d} IS NOT NULL ORDER BY {d}")] for d in DIMENSIONS}
             missing = {d: con.execute(f"SELECT COUNT(*) FROM snapshots WHERE {d} IS NULL").fetchone()[0] for d in ("pd_12m", "lgd")}
-            if not self.synthetic:
+            if self.uploaded:
                 missing.update({d: con.execute(f"SELECT COUNT(*) FROM snapshots WHERE {d} IS NULL").fetchone()[0] for d in ("region", "risk_band")})
             count = con.execute("SELECT COUNT(*) FROM loans").fetchone()[0]
-        return {"dataset": self.version, "dataset_id": self.dataset_id, "synthetic": self.synthetic, "currency": "RUB", "dates": dates,
-                "missing_values": missing, "unavailable_metrics": {**({"weighted_rate": "Ставка не входит в формат XLSX"} if not self.synthetic else {}), **({"el": "PD/LGD отсутствуют в части или всех строк; доступность зависит от выбранного среза и фильтров"} if any(missing[k] for k in ("pd_12m", "lgd")) else {})},
+        return {"dataset": self.version, "dataset_id": self.dataset_id, "synthetic": self.synthetic, "source_sha256": self.source_sha256, "currency": "RUB", "dates": dates,
+                "missing_values": missing, "unavailable_metrics": {**({"weighted_rate": "Ставка не входит в формат XLSX"} if self.uploaded else {}), **({"el": "PD/LGD отсутствуют в части или всех строк; доступность зависит от выбранного среза и фильтров"} if any(missing[k] for k in ("pd_12m", "lgd")) else {})},
                 "latest_date": dates[-1], "loan_count": count, "filters": cats,
                 "ratio_unit": "fraction: 0.05 means 5%", "delta_unit": "percentage_points",
                 "npl_definition": "Учебный proxy: DPD >= 90; не регуляторное определение NPL",
@@ -93,7 +97,7 @@ class Analytics:
         return " WHERE " + " AND ".join(clauses), params
 
     def _result(self, payload, as_of=None, **filters):
-        return {"source": "SQLite / " + self.version, "dataset": self.version, "dataset_id": self.dataset_id, "synthetic": self.synthetic,
+        return {"source": "SQLite / " + self.version, "dataset": self.version, "dataset_id": self.dataset_id, "synthetic": self.synthetic, "source_sha256": self.source_sha256,
                 "as_of": as_of, "filters": {k: v for k, v in filters.items() if v is not None},
                 "currency": "RUB", **payload}
 

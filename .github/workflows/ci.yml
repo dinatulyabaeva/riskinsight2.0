@@ -33,6 +33,37 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements-dev.txt -r requirements-ui.txt
       - run: python -m playwright install chromium
-      - run: python -m pytest tests/test_browser.py -q
+      - run: python -m pytest tests/test_browser.py tests/test_evidence_ui.py -q
         env:
           RUN_BROWSER_TESTS: '1'
+
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-dev.txt -r requirements-sdk.txt
+      - run: python -m scripts.sdk_smoke
+      - name: HTTP smoke with real DEMO server and MCP subprocess
+        shell: bash
+        env:
+          APP_MODE: demo
+          APP_ACCESS_TOKEN: ci-smoke-only-not-a-production-secret
+          SEED_LOANS: '100'
+          LLM_API_KEY: ''
+          OPENAI_API_KEY: ''
+        run: |
+          mkdir -p reports
+          export DATABASE_PATH="$RUNNER_TEMP/riskinsight-http-smoke/portfolio.sqlite"
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 > reports/http-server.log 2>&1 &
+          riskinsight_server_pid=$!
+          trap 'kill "$riskinsight_server_pid" 2>/dev/null || true; wait "$riskinsight_server_pid" 2>/dev/null || true' EXIT
+          python -m scripts.smoke --base-url http://127.0.0.1:8765 --expect-mode demo --wait-seconds 45 | tee reports/http-smoke.txt
+      - run: python -m scripts.eval_acceptance --provider controlled --repeat 2 --output reports/acceptance-controlled.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: acceptance-controlled-not-live-llm
+          path: reports/

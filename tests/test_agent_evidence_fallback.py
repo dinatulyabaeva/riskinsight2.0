@@ -31,6 +31,6 @@ async def test_error_retains_trace(settings):
     cfg = replace(settings, mode='llm', llm_model='test', llm_api_key='test')
     with pytest.raises(AgentError) as err:
         await run_agent(ChatRequest(question='Неподтверждённый ответ'), cfg,
-                        FakeProvider([{'content': 'Без ссылок'}, {'content': 'Снова без ссылок'}]))
+                        FakeProvider([{'content': 'Без ссылок'}] * 3))
     assert err.value.mcp_trace[0]['tool'] == 'get_dataset_context'
     assert err.value.mcp_trace[0]['ok']

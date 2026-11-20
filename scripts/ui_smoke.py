@@ -37,9 +37,11 @@ def main():
             html = html.replace('<link rel="stylesheet" href="/static/app.css">',
                                 '<style>' + (ROOT / 'static/app.css').read_text(encoding='utf-8') + '</style>')
             html = html.replace('<script defer src="/static/app.js"></script>', '')
+            html = html.replace('<script defer src="/static/evidence-charts.js"></script>', '')
             page.expose_function('testApiBridge', bridge)
             page.set_content(html, wait_until='domcontentloaded')
             page.evaluate('window.fetch=async(u,o)=>{const r=await window.testApiBridge(u,o);return new Response(r.body,{status:r.status,headers:r.headers});}')
+            page.add_script_tag(content=(ROOT / 'static/evidence-charts.js').read_text(encoding='utf-8'))
             page.add_script_tag(content=(ROOT / 'static/app.js').read_text(encoding='utf-8'))
         else:
             page.goto(args.base_url, wait_until='networkidle')
@@ -57,9 +59,6 @@ def main():
         page.locator('.source-ref').first.click()
         report['evidence_expanded'] = page.locator('details.trace').first.get_attribute('open') is not None
         assert report['evidence_expanded']
-        page.select_option('#product-filter', 'Потребительский')
-        expect(page.locator('#export-dashboard')).to_be_enabled()
-        report['filtered_count'] = page.locator('#kpi-count').inner_text()
         # Test downloads without inspecting OS paths or user files.
         with page.expect_download() as event:
             page.locator('#export-dashboard').click()
@@ -70,6 +69,11 @@ def main():
         with page.expect_download() as event:
             page.locator('.result-actions button').nth(1).click()
         report['evidence_export'] = event.value.suggested_filename
+        # A scope change now starts a new analysis and clears the old report.
+        page.select_option('#product-filter', 'Потребительский')
+        expect(page.locator('#export-dashboard')).to_be_enabled()
+        report['filtered_count'] = page.locator('#kpi-count').inner_text()
+        expect(page.locator('.result-block')).to_have_count(0)
         mobile = browser.new_page(viewport={'width': 390, 'height': 844})
         load(mobile)
         report['mobile_horizontal_overflow'] = mobile.evaluate('document.documentElement.scrollWidth>innerWidth')
@@ -85,12 +89,14 @@ def main():
         slides.screenshot(path=str(args.output / 'presentation-cover.png'), animations='disabled', full_page=True)
         slides.keyboard.press('ArrowRight')
         assert slides.locator('#counter').inner_text() == '02 / 10'
-        slides.keyboard.press('ArrowRight')
-        slides.locator('[data-step="3"]').click()
-        assert 'MCP JSON-RPC' in slides.locator('#flow-description').inner_text()
-        slides.evaluate('go(5)')
+        slides.evaluate('go(4)')
+        slides.locator('[data-step="2"]').click()
+        assert 'MCP-клиент' in slides.locator('#flow-description').inner_text()
+        slides.evaluate('go(3)')
+        slides.select_option('#demo-scenario', 'deterioration')
         slides.select_option('#demo-month', '2026-04-30')
         report['presentation_metric'] = slides.locator('#d-npl').inner_text()
+        assert report['presentation_metric'] == '5,57%'
         assert not report['errors']
         browser.close()
     (args.output / 'browser-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')

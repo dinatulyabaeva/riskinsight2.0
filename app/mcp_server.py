@@ -11,6 +11,7 @@ import logging
 import sys
 from pathlib import Path
 from pydantic import ValidationError
+from . import __version__
 from .datasets import DatasetStore
 from .tool_registry import list_tools, execute_tool, METHODOLOGY, TOOLS
 
@@ -54,7 +55,7 @@ class ProtocolServer:
                     return error(rid, -32602, "Invalid initialization parameters")
                 self.negotiated = True
                 result = {"protocolVersion": PROTOCOL_VERSION, "capabilities": {"tools": {"listChanged": False}, "resources": {"subscribe": False, "listChanged": False}},
-                          "serverInfo": {"name": "riskinsight-analytics", "version": "1.0.0"},
+                          "serverInfo": {"name": "riskinsight-analytics", "version": __version__},
                           "instructions": "Read-only dataset-scoped portfolio analytics. Call get_dataset_context first. Monetary amounts are RUB, ratios are fractions."}
             elif method == "ping":
                 result = {}
