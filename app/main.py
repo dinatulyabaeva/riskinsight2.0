@@ -160,7 +160,8 @@ def create_app(settings=None):
                 "mode": settings.mode, "llm_configured": settings.llm_configured,
                 "auth_required": bool(settings.access_token),
                 "build_commit": os.getenv("RENDER_GIT_COMMIT", "")[:40] or None,
-                "features": {"conversation_memory": True, "evidence_charts": True, "teaching_dataset": True},
+                "features": {"conversation_memory": True, "evidence_charts": True, "teaching_dataset": True,
+                             "responses_api": True},
                 "storage": "ephemeral" if os.getenv("RENDER") else "local",
                 "memory": {"max_turns": 6, "ttl_seconds": 3600, "persistent": False}}
 
