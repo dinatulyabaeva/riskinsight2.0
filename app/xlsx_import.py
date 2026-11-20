@@ -3,7 +3,9 @@ from contextlib import closing
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
+import hashlib
 import os
+from pathlib import Path
 import sqlite3
 import tempfile
 import uuid
@@ -193,6 +195,10 @@ def import_xlsx(store: DatasetStore, filename: str, content: bytes):
     report, records = validate_xlsx(content)
     if report["status"] == "rejected":
         return store.record(report)
+    source_sha256 = hashlib.sha256(content).hexdigest()
+    example_path = Path(__file__).resolve().parents[1] / "examples/portfolio-scenarios.xlsx"
+    # Provenance is verified by bytes, never by a user-supplied filename.
+    teaching_example = example_path.is_file() and hashlib.sha256(example_path.read_bytes()).hexdigest() == source_sha256
     dataset_id = "upload_" + uuid.uuid4().hex
     path = store.root / (dataset_id + ".sqlite")
     fd, temporary = tempfile.mkstemp(prefix="import-", suffix=".sqlite", dir=store.root)
@@ -205,12 +211,15 @@ def import_xlsx(store: DatasetStore, filename: str, content: bytes):
                             [(r["as_of"], r["loan_id"], r["product"], r["region"], r["risk_band"],
                               r["balance_rub"], r["dpd"], r["pd_12m"], r["lgd"]) for r in records])
             con.executemany("INSERT INTO metadata VALUES (?,?)", [
-                ("dataset_version", dataset_id), ("synthetic", "false"), ("schema", "xlsx-v1"),
+                ("dataset_version", "teaching-v1-" + source_sha256[:12] if teaching_example else dataset_id),
+                ("synthetic", "true" if teaching_example else "false"), ("schema", "xlsx-v1"),
+                ("source_sha256", source_sha256),
                 ("row_count", str(len(records))), ("currency", "RUB")])
         os.replace(temporary, path)  # All SQLite handles are closed before rename, including on Windows.
         try:
             name = filename.replace("\\", "/").rsplit("/", 1)[-1][:128]
-            return store.record({**report, "status": "imported", "dataset_id": dataset_id}, name)
+            return store.record({**report, "status": "imported", "dataset_id": dataset_id,
+                                 "source_sha256": source_sha256, "synthetic": teaching_example}, name)
         except Exception:
             path.unlink(missing_ok=True)
             raise

@@ -71,7 +71,11 @@ def test_upload_select_free_question_and_switch_back(tmp_path):
             page.locator('#send-button').click()
             page.wait_for_selector('.result-block')
             answer = page.locator('.answer').inner_text()
-            assert '3000.0 / 4000.0' in answer and '75.00%' in answer and identifier in answer
+            # Production renderer uses exact RUB amounts from MCP, not prose
+            # manufactured by the browser network double.
+            assert '3 000.00' in answer and '4 000.00' in answer
+            assert '75.00%' in answer and identifier in answer and 'SUM(balance_kop' in answer
+            assert 'Модель выбрала инструменты' in page.locator('.provenance-note').inner_text()
             page.locator('.source-ref').first.click()
             trace = page.locator('.trace-call').nth(1).inner_text()
             assert 'get_portfolio_summary' in trace and identifier in trace and '3000' in trace

@@ -10,3 +10,7 @@ data/*.db
 *.log
 data/imports/
 .ruff_cache/
+*.bak
+eval_results/
+reports/
+outputs/

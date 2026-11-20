@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101821"><title>RiskInsight — аналитика кредитного портфеля</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' rx='12' fill='%236be3bd'/%3E%3Ctext x='14' y='36' font-family='Arial' font-size='36' fill='%230b1719'%3ER%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="/static/app.css"><script defer src="/static/app.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101821"><title>RiskInsight — аналитика кредитного портфеля</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' rx='12' fill='%236be3bd'/%3E%3Ctext x='14' y='36' font-family='Arial' font-size='36' fill='%230b1719'%3ER%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="/static/app.css"><script defer src="/static/evidence-charts.js"></script><script defer src="/static/app.js"></script></head>
 <body>
 <aside class="sidebar">
   <a href="/" class="brand"><span class="logo">R<span>↗</span></span><span>RiskInsight<small>PORTFOLIO INTELLIGENCE</small></span></a>
@@ -8,7 +8,7 @@
   <p class="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</p>
   <nav><a class="active" href="#overview"><span>▦</span>Обзор портфеля</a><a href="#analyst"><span>✧</span>AI-аналитик</a><a href="#segments"><span>▥</span>Сегменты</a><button id="method-button"><span>◎</span>Методология</button><a href="/presentation" target="_blank" rel="noopener"><span>▣</span>Презентация <small>↗</small></a></nav>
   <div class="side-card"><span class="micro">ПРОВЕРЯЕМЫЙ АНАЛИЗ</span><h3>От вопроса<br>до источника.</h3><p>Каждый вызов инструмента и его результат — в журнале MCP.</p><div class="tiny-path">Вопрос <span>→</span> Агент <span>→</span> MCP</div></div>
-  <div class="side-bottom"><span id="connection-dot" class="status-dot"></span><span id="connection-label">Подключение…</span><small>v1.0</small></div>
+  <div class="side-bottom"><span id="connection-dot" class="status-dot"></span><span id="connection-label">Подключение…</span><small>v2.1</small></div>
 </aside>
 <main id="overview">
 <header><div class="breadcrumb">Рабочее пространство <span>/</span> <strong>Обзор</strong></div><div class="header-actions"><span id="dataset-tag" class="synthetic-tag">СИНТЕТИЧЕСКИЕ ДАННЫЕ</span><button id="access-button" class="icon-button" aria-label="Настроить токен доступа" title="Токен доступа">⚿</button><span class="avatar">RA</span></div></header>
@@ -16,8 +16,10 @@
 <section class="panel import-panel" aria-label="Портфели и загрузка XLSX">
  <div class="panel-heading"><h2>Портфель для анализа</h2></div>
  <label for="dataset-filter">Набор данных</label><select id="dataset-filter" aria-label="Набор данных"><option value="builtin">Встроенный синтетический портфель</option></select>
+ <div class="teaching-dataset"><div><h3>Тестовый портфель со сценариями</h3><p>История на нескольких датах: стабильные сегменты, рост просрочки и восстановление. Используйте её для тренда, сравнения и стресс-сценария.</p></div><div class="teaching-actions"><button id="load-example" class="primary" type="button">Открыть тестовый портфель</button><button id="download-example" class="secondary" type="button">↓ Скачать тестовый XLSX</button></div></div>
  <form id="upload-form"><label for="xlsx-file">Загрузить кредитный портфель (.xlsx, до 10 МБ)</label><input id="xlsx-file" type="file" accept=".xlsx"><button id="upload-button" class="secondary" type="submit">Проверить и импортировать</button></form>
- <p>Один лист, первая строка — заголовки. Обязательные: loan_id, as_of, product, balance_rub, dpd. Опциональные: region, risk_band (A–D), pd_12m, lgd. Доли PD/LGD: 0..1. Формулы запрещены. Импорт с ошибками отклоняется целиком.</p>
+ <p>Один лист, первая строка — заголовки. Обязательные: loan_id, as_of, product, balance_rub, dpd. Опциональные: region, risk_band (A–D), pd_12m, lgd. Доли PD/LGD: 0..1. Формулы запрещены. Импорт с ошибками отклоняется целиком. Успешно загруженный набор выбирается автоматически.</p>
+ <p id="storage-note" class="warning" hidden></p>
  <div id="import-result" role="status" aria-live="polite"></div>
  <details><summary>Журнал импорта (последние 50)</summary><div id="import-history"></div></details>
 </section>
@@ -36,9 +38,10 @@
  <section id="segments" class="panel"><div class="panel-heading"><div><h2>Риск по продуктам</h2><p>Сортировка по доле DPD 90+</p></div><span class="subtle-tag">MCP</span></div><div class="table-wrap"><table><thead><tr><th>Продукт</th><th>Остаток</th><th>DPD 90+</th><th>Доля портфеля</th></tr></thead><tbody id="segments-body"></tbody></table></div></section>
 </div><section id="analyst" class="panel analyst-panel"><div class="analyst-heading"><span class="ai-icon">✧</span><div><h2>AI-аналитик</h2><p>От метрик к проверяемым выводам</p></div><span id="mode-badge" class="mode-badge">…</span></div><div id="mode-note" class="mode-note">Проверяем конфигурацию…</div>
  <div class="scenario-section"><div class="section-label">НАЧНИТЕ СО СЦЕНАРИЯ</div><div class="scenario-grid"><button data-scenario="overview"><span>▦</span>Обзор портфеля<small>Ключевые показатели</small></button><button data-scenario="trend"><span>↗</span>Динамика риска<small>Последние 6 срезов</small></button><button data-scenario="segments"><span>▥</span>Риск-сегменты<small>Регионы и продукты</small></button><button data-scenario="drivers"><span>◎</span>Что изменилось?<small>Разложение по вкладам</small></button><button data-scenario="stress"><span>ϟ</span>Стресс-сценарий<small>PD ×1,5 · LGD +5 п.п.</small></button><button data-scenario="quality"><span>✓</span>Качество данных<small>Полнота и целостность</small></button></div></div>
- <div id="conversation" class="conversation" aria-live="polite"><div class="welcome"><div class="welcome-mark">✧</div><h3>Спросите о своем портфеле</h3><p>Выберите сценарий выше. После подключения LLM задавайте вопросы своими словами.</p><div class="trust-row"><span>✓ Только чтение</span><span>✓ Источники [Tn]</span></div></div></div>
+ <div class="memory-bar"><div><strong id="memory-status">Новый диалог</strong><small>Контекст: до 6 последних ответов, до 1 часа. Смена области и перезапуск сервера очищают память.</small></div><button id="new-analysis" class="secondary" type="button">Новый анализ</button></div>
+ <div id="conversation" class="conversation" aria-live="polite"><div class="welcome"><div class="welcome-mark">✧</div><h3>Спросите о своем портфеле</h3><p>Начните со сценария или вопроса своими словами. Затем уточните: «а теперь тот же тренд по продукту…». Область каждого ответа и данные графика можно проверить.</p><div class="trust-row"><span>✓ Только чтение</span><span>✓ Источники [Tn]</span></div></div></div>
  <form id="chat-form" class="composer"><label class="sr-only" for="question">Вопрос аналитику</label><textarea id="question" rows="2" maxlength="2500" placeholder="Например: какие продукты дали наибольший вклад в рост просрочки?" disabled></textarea><div><span id="composer-note">DEMO: используйте готовые сценарии</span><button id="send-button" type="submit" class="send-button" disabled aria-label="Отправить вопрос">↑</button></div></form>
- <div class="analyst-footer">LLM объясняет. MCP получает данные. Python считает.</div>
+ <div class="analyst-footer">LLM выбирает анализ. MCP получает данные. Python считает и проверяет числа.</div>
 </section></div>
 <footer><span>RiskInsight / личный проект</span><span>Не для индивидуальных кредитных решений. Источник данных указан в выбранном наборе.</span><a href="/api/docs" target="_blank" rel="noopener">API ↗</a></footer>
 </main>

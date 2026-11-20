@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import sys
 import time
+from . import __version__
 from .mcp_server import PROTOCOL_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,7 +35,7 @@ class MCPClient:
             stderr=asyncio.subprocess.DEVNULL, limit=1_048_576,
         )
         try:
-            result = await self.request("initialize", {"protocolVersion": PROTOCOL_VERSION, "capabilities": {}, "clientInfo": {"name": "riskinsight-web", "version": "1.0.0"}})
+            result = await self.request("initialize", {"protocolVersion": PROTOCOL_VERSION, "capabilities": {}, "clientInfo": {"name": "riskinsight-web", "version": __version__}})
             if result.get("protocolVersion") != PROTOCOL_VERSION or "tools" not in result.get("capabilities", {}):
                 raise MCPError("Несовместимая версия или capabilities MCP")
             self.server_info = result["serverInfo"]

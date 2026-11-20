@@ -49,10 +49,14 @@ async def test_llm_loop_mock_provider_real_mcp(settings):
     cfg=replace(settings,mode='llm',llm_model='test-tool-model',llm_api_key='test-secret')
     provider=ChatCompletionsProvider(cfg,transport=httpx.MockTransport(handler))
     r=await run_agent(ChatRequest(question='Обзор портфеля'),cfg,provider)
-    assert len(calls)==2
-    assert r['usage']['input_tokens']==20
+    assert len(calls)==1  # model selects; numeric report is rendered from MCP
+    assert r['usage']['input_tokens']==10
     assert r['mode']=='llm'
     assert [t['tool'] for t in r['trace']]==['get_dataset_context','get_portfolio_summary']
+    assert r['trace'][1]['result']['metrics']['balance_rub'] == 9600
+    assert '9 600.00' in r['answer']
+    assert r['provenance']['planner'] == 'llm'
+    assert r['provenance']['narrative_source'] == 'mcp_renderer'
     assert 'test-secret' not in json.dumps(r)
 
 

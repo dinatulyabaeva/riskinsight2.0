@@ -17,25 +17,16 @@ async def test_native_ollama_full_loop_with_actual_mcp(settings):
         assert body['think'] is False and body['stream'] is False
         assert body['options']['num_predict'] == cfg.max_output_tokens
         assert 'Authorization' not in request.headers
-        if len(requests) == 1:
-            message = {'content': '', 'tool_calls': [{'function': {'name': 'get_dataset_context', 'arguments': {}}}]}
-        elif len(requests) == 2:
-            assert body['messages'][-1]['tool_name'] == 'get_dataset_context'
-            assert json.loads(body['messages'][-1]['content'])['dataset_id'] == 'builtin'
-            message = {'content': '', 'tool_calls': [{'function': {'name': 'get_portfolio_summary', 'arguments': {}}}]}
-        else:
-            assert body['messages'][-1]['tool_name'] == 'get_portfolio_summary'
-            assert json.loads(body['messages'][-1]['content'])['metrics']['balance_rub'] == 9600
-            previous = [m for m in body['messages'] if m.get('tool_calls')]
-            assert isinstance(previous[-1]['tool_calls'][0]['function']['arguments'], dict)
-            message = {'content': 'Остаток 9600 RUB, DPD90+ 5800/9600. [T2]'}
+        assert any('get_dataset_context' in m.get('content', '') for m in body['messages'])
+        assert all(t['function']['name'] != 'get_dataset_context' for t in body['tools'])
+        message = {'content': '', 'tool_calls': [{'function': {'name': 'get_portfolio_summary', 'arguments': {}}}]}
         return httpx.Response(200, json={'done': True, 'done_reason': 'stop', 'message': message,
                                        'prompt_eval_count': 10, 'eval_count': 5})
     result = await run_agent(ChatRequest(question='Проверь просрочку'), cfg,
                              OllamaProvider(cfg, httpx.MockTransport(handler)))
-    assert result['mode'] == 'llm' and len(requests) == 3
+    assert result['mode'] == 'llm' and len(requests) == 1
     assert all(t['ok'] for t in result['trace'])
-    assert result['usage']['input_tokens'] == 30
+    assert result['usage']['input_tokens'] == 10
     assert result['trace'][1]['result']['npl90_calculation']['numerator_rub'] == 5800
 
 
@@ -81,7 +72,7 @@ def test_compact_schema_keeps_validation_and_property_names():
 
 
 @pytest.mark.asyncio
-async def test_native_first_round_is_compact_but_later_tools_available(settings):
+async def test_native_compact_schema_does_not_hide_analytic_tools(settings):
     from app.agent import SYSTEM_PROMPT, OLLAMA_SYSTEM_PROMPT
     from app.tool_registry import list_tools
     tools = [{'type': 'function', 'function': {'name': t['name'], 'description': t['description'],
@@ -94,9 +85,9 @@ async def test_native_first_round_is_compact_but_later_tools_available(settings)
     messages = [{'role': 'system', 'content': SYSTEM_PROMPT}, {'role': 'user', 'content': 'Question'}]
     await provider.complete(messages, tools, 'required')
     await provider.complete(messages, tools, 'auto')
-    assert [t['function']['name'] for t in captured[0]['tools']] == ['get_dataset_context']
+    assert len(captured[0]['tools']) == 9
     assert len(captured[1]['tools']) == 9
     assert captured[0]['messages'][0]['content'] == OLLAMA_SYSTEM_PROMPT
     assert messages[0]['content'] == SYSTEM_PROMPT
     baseline = len(json.dumps({'messages': messages, 'tools': tools}, ensure_ascii=False))
-    assert len(json.dumps(captured[0], ensure_ascii=False)) < baseline * .5
+    assert len(json.dumps(captured[0], ensure_ascii=False)) < baseline
