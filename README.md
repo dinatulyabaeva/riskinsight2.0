@@ -188,7 +188,9 @@ Render собирает Docker из GitHub. `render.yaml` задаёт бесп�
 
 **Локальные результаты на 20 ноября 2026 года:** 225 тестов пройдено, 6 браузерных тестов пропущено, 1 предупреждение; время — 28,65 с. Контрольный прогон с заданными ответами провайдера: **34/34** анализов и **30/30** применимых графиков прошли сверку с независимым эталоном, ошибочных MCP-вызовов — **0**, внешних обращений к LLM — **0**. Это проверка интеграции, а не качества живой модели. [Вывод pytest](docs/examples/pytest-2.1.txt) и [контрольный отчёт](docs/examples/acceptance-controlled.json) сохранены.
 
-**Открытые пункты:** свежий Eval живой модели на новой версии, проверка новой публичной сборки и подтверждённый успешный запуск GitHub Actions. До их выполнения проект не объявляется полностью проверенным. Подробности и ограничения проверки — [RELEASE_CHECK.md](docs/RELEASE_CHECK.md).
+**GitHub Actions:** [9/9 заданий завершились успешно](https://github.com/dinatulyabaeva/riskinsight2.0/actions/runs/44798555763); Windows/Linux, Python 3.11–3.13, а также все 6 браузерных проверок на обеих системах.
+
+**Открытые пункты:** свежий Eval живой модели на новой версии и полный авторизованный сценарий в новой публичной сборке. До их выполнения проект не объявляется полностью проверенным. Подробности и ограничения проверки — [RELEASE_CHECK.md](docs/RELEASE_CHECK.md).
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests -q
@@ -251,7 +253,7 @@ try {
 
 Исторические «159 passed» и «18/20» относятся к прежнему коду/модели; они не являются оценкой этой версии. Свежие доказательства и неизмеренные пункты — [RELEASE_CHECK.md](docs/RELEASE_CHECK.md).
 
-Браузерные проверки: установить `requirements-ui.txt`, выполнить `python -m playwright install chromium`, затем `RUN_BROWSER_TESTS=1 python -m pytest tests/test_browser.py tests/test_evidence_ui.py -q`. В PowerShell сначала `$env:RUN_BROWSER_TESTS="1"`. GitHub Actions содержит Windows/Linux и отдельные браузерные проверки; сам workflow ещё не означает успешный запуск.
+Браузерные проверки: установить `requirements-ui.txt`, выполнить `python -m playwright install chromium`, затем `RUN_BROWSER_TESTS=1 python -m pytest tests/test_browser.py tests/test_evidence_ui.py -q`. В PowerShell сначала `$env:RUN_BROWSER_TESTS="1"`. Фактический успешный запуск Windows/Linux и браузерных проверок приведён [в журнале CI](https://github.com/dinatulyabaeva/riskinsight2.0/actions/runs/44798555763).
 
 ## 9. Ограничения
 
