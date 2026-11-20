@@ -3,6 +3,17 @@
 
 .scenario-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:16px}.scenario-table th,.scenario-table td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line)}.scenario-table th{color:var(--muted);font-weight:500;font-size:12px}.scenario-table td:not(:first-child){font-variant-numeric:tabular-nums}.scenario-table td:last-child{color:var(--mint)}.chart-controls{display:flex;gap:15px;align-items:center;flex-wrap:wrap}.chart-controls label{font-size:12px;color:var(--muted)}.chart-controls select{display:block;max-width:100%;margin-top:5px}.offline-chart{width:100%;max-height:270px;margin:14px 0}.offline-chart svg{width:100%;height:auto;max-height:270px;display:block}.scenario-stats{display:flex;gap:28px;margin:10px 0;flex-wrap:wrap}.scenario-stats span{font-size:12px;color:var(--muted)}.scenario-stats strong{display:block;font-size:27px;color:var(--text);font-weight:500}.inline-details{font-size:13px;color:var(--muted);margin:12px 0}.inline-details summary{cursor:pointer;color:var(--mint)}.inline-details table{font-size:12px;max-width:650px}.table-scroll{overflow-x:auto}.example-dialog{display:grid;gap:13px}.example-dialog p{padding:14px 18px;border:1px solid var(--line);border-radius:8px;font-size:16px;margin:0}.example-dialog p:nth-child(2){background:#1b3330}.example-dialog small{display:block;color:var(--muted);font-size:12px}.compact-formula{font-size:17px;overflow-wrap:anywhere}.link-row{display:flex;gap:15px;flex-wrap:wrap}.repo-link{color:var(--mint);font-size:14px;text-underline-offset:4px}.prompt-list{display:grid;gap:10px}.prompt-item{border-left:2px solid var(--mint);padding:9px 16px;font-size:16px}.prompt-item small{display:block;color:var(--muted);font-size:12px}.prompt-item button{background:transparent;color:var(--mint);border:1px solid #38574c;border-radius:5px;padding:3px 8px;margin-top:6px;font-size:11px}.deck-footnote{font-size:12px;color:var(--muted);line-height:1.7}.eval-table{font-size:14px}.eval-table td{vertical-align:top}.eval-table td:last-child{color:var(--text)}.metric-grid{gap:15px}.slide h2{max-width:1100px}.flow button:after{content:''}.note a{color:var(--mint)}.scenario-name{color:var(--mint)}
 @media(max-width:800px){.scenario-table{font-size:12px}.scenario-table th,.scenario-table td{padding:9px 8px}.scenario-table th{font-size:10px}.metric-grid{grid-template-columns:1fr}.scenario-stats{gap:16px}.scenario-stats strong{font-size:22px}.chart-controls{display:block}.chart-controls label{display:block;margin:9px 0}.chart-controls select{width:100%}.prompt-item{font-size:14px}.header-right{max-width:150px;text-align:right}}
+/* Keep all navigation controls usable on narrow screens without clipping. */
+@media(max-width:520px){
+ .controls{height:auto;min-height:92px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px 5vw}
+ .counter{grid-column:1;grid-row:1}
+ .control-buttons{grid-column:2;grid-row:1}
+ .dots{grid-column:1 / -1;grid-row:2;justify-content:center;flex-wrap:wrap}
+ .flow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .flow button{min-width:0;overflow-wrap:anywhere}
+ .flow button:last-child{grid-column:1 / -1}
+ .flow-description{overflow-wrap:anywhere}
+}
 </style></head><body>
 <header><div class="brand"><b>R</b>RiskInsight</div><span class="header-right">ПОВТОРНАЯ ЗАЩИТА / УЧЕБНЫЙ ПРОЕКТ</span></header>
 <main class="deck">

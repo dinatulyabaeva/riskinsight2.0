@@ -205,7 +205,16 @@ class EvidenceUITests(unittest.TestCase):
         self.page.locator('[data-step="2"]').click()
         self.expect(self.page.locator("#flow-description")).to_contain_text("MCP-клиент")
         self.page.set_viewport_size({"width": 390, "height": 844})
-        self.assertFalse(self.page.evaluate("document.documentElement.scrollWidth > innerWidth"))
+        layout = self.page.evaluate("""() => ({
+            scrollWidth: document.documentElement.scrollWidth,
+            innerWidth,
+            overflowingElements: [...document.body.querySelectorAll('*')].map(element => {
+                const bounds = element.getBoundingClientRect();
+                return {tag: element.tagName, id: element.id, className: element.getAttribute('class'),
+                        left: bounds.left, right: bounds.right, width: bounds.width};
+            }).filter(bounds => bounds.width > 0 && (bounds.left < 0 || bounds.right > innerWidth)).slice(0, 30)
+        })""")
+        self.assertFalse(layout["scrollWidth"] > layout["innerWidth"], json.dumps(layout, ensure_ascii=False))
 
 
 if __name__ == "__main__":
