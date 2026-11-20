@@ -11,6 +11,8 @@ from .config import Settings
 from .mcp_client import MCPClient, EvidenceSession
 from .tool_registry import Filters
 from .datasets import DATASET_PATTERN
+from .errors import AgentError
+from .responses import ResponsesProvider
 
 SCENARIOS = {
     "overview": "Обзор качества портфеля",
@@ -38,12 +40,6 @@ class ChatRequest(BaseModel):
         if len(value) < 3:
             raise ValueError("Введите вопрос длиной от 3 символов")
         return value
-
-class AgentError(RuntimeError):
-    def __init__(self, message, *, status_code=None, retry_after=None):
-        super().__init__(message)
-        self.status_code = status_code
-        self.retry_after = retry_after
 
 # Exported for provider integrations; production adds actual MCP context to it.
 from .orchestration import PLANNER_PROMPT
@@ -480,11 +476,21 @@ def _monetary_claims_supported(answer, trace):
     return True
 
 
+def make_provider(settings, transport=None):
+    """One provider factory shared by the application and live evaluation."""
+    providers = {"openai": ChatCompletionsProvider, "ollama": OllamaProvider,
+                 "responses": ResponsesProvider}
+    provider_type = providers.get(settings.llm_api_style)
+    if provider_type is None:
+        raise AgentError("Неизвестный LLM_API_STYLE")
+    return provider_type(settings, transport=transport)
+
+
 async def llm_answer(session, tools, request, settings, provider=None, *, memory=None):
     """Real LLM tool selection; every number and chart comes from MCP evidence."""
     if not settings.llm_configured:
         raise AgentError("Для APP_MODE=llm задайте LLM_API_KEY и LLM_MODEL")
-    provider = provider or (OllamaProvider(settings) if settings.llm_api_style == "ollama" else ChatCompletionsProvider(settings))
+    provider = provider or make_provider(settings)
     from .orchestration import plan_and_execute
     return await plan_and_execute(session, tools, request, settings, provider, AgentError, memory)
 

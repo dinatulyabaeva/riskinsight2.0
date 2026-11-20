@@ -172,9 +172,11 @@ MAX_AGENT_ROUNDS=3
 
 Ollama также поддерживается: `LLM_API_STYLE=ollama`, `LLM_BASE_URL=http://127.0.0.1:11434`, имя установленной модели с tools. Качество/скорость конкретной модели требуют отдельного Eval. Результаты Qwen не переносятся на Ling.
 
+**Yandex AI Studio (версия 2.2):** добавлен `LLM_API_STYLE=responses`, плоские схемы функций и преобразование ответов Responses в проверяемые MCP-вызовы. Настройки для Alice AI LLM Flash, права сервисного аккаунта и короткий живой прогон — в [YANDEX_SETUP.md](docs/YANDEX_SETUP.md). Платный API подключается явным выбором владельца. Тесты адаптера с заданными HTTP-ответами не подтверждают качество живой модели.
+
 Linux/macOS: `python3 -m venv .venv`, `source .venv/bin/activate`, далее те же Python-команды. Docker: `docker compose up --build`; локальный Compose хранит данные в именованном томе.
 
-Render собирает Docker из GitHub. `render.yaml` задаёт бесплатный план; секреты `LLM_API_KEY` и `APP_ACCESS_TOKEN` вводятся в разделе **Environment** панели Render. Компьютер владельца не нужен для работы облачного OpenRouter. После развёртывания проверяются конкретный коммит, вход извне и настоящий вопрос к LLM. Проверки `/api/health` для этого недостаточно.
+Render собирает Docker из GitHub. `render.yaml` задаёт бесплатный план; секреты `LLM_API_KEY` и `APP_ACCESS_TOKEN` вводятся в разделе **Environment** панели Render. Компьютер владельца не нужен для работы облачного провайдера LLM. После развёртывания проверяются конкретный коммит, вход извне и настоящий вопрос к LLM. Проверки `/api/health` для этого недостаточно.
 
 ## 8. Проверки, Eval и разбор ошибок
 
@@ -186,9 +188,11 @@ Render собирает Docker из GitHub. `render.yaml` задаёт бесп�
 | Live Eval | Реальный выбор tools выбранной моделью на сохранённых вопросах | Универсальную точность на любых данных |
 | Браузер / публичный сервис | UI, deploy и доступ извне | Постоянную доступность бесплатных платформ |
 
-**Локальные результаты на 20 ноября 2026 года:** 225 тестов пройдено, 6 браузерных тестов пропущено, 1 предупреждение; время — 28,65 с. Контрольный прогон с заданными ответами провайдера: **34/34** анализов и **30/30** применимых графиков прошли сверку с независимым эталоном, ошибочных MCP-вызовов — **0**, внешних обращений к LLM — **0**. Это проверка интеграции, а не качества живой модели. [Вывод pytest](docs/examples/pytest-2.1.txt) и [контрольный отчёт](docs/examples/acceptance-controlled.json) сохранены.
+**Версия 2.2, локальные результаты на 20 ноября 2026 года:** **253 passed, 6 skipped, 1 warning**, 28,72 с; в том числе 28 новых тестов Responses API. [Вывод pytest](docs/examples/pytest-2.2.txt). Дополнительно пройдены официальный MCP SDK, HTTP smoke в режиме DEMO и контрольный Eval **17/17**, с проверкой **15/15** применимых графиков. Внешних обращений к модели в этих проверках нет; качество живой Alice AI LLM Flash пока не измерено.
 
-**GitHub Actions:** [9/9 заданий завершились успешно](https://github.com/dinatulyabaeva/riskinsight2.0/actions/runs/44798555763); Windows/Linux, Python 3.11–3.13, а также все 6 браузерных проверок на обеих системах.
+Для предыдущей версии 2.1 сохранены [вывод pytest: 225 passed](docs/examples/pytest-2.1.txt) и [контрольный отчёт: 34/34 анализов, 30/30 графиков](docs/examples/acceptance-controlled.json). Это проверка интеграции с заданными ответами провайдера, а не качества живой модели.
+
+**GitHub Actions версии 2.1:** [9/9 заданий завершились успешно](https://github.com/dinatulyabaeva/riskinsight2.0/actions/runs/44798555763); Windows/Linux, Python 3.11–3.13, а также все 6 браузерных проверок на обеих системах. Проверки новой версии фиксируются отдельно в [журнале поставки](docs/RELEASE_CHECK.md).
 
 **Открытые пункты:** свежий Eval живой модели на новой версии и полный авторизованный сценарий в новой публичной сборке. До их выполнения проект не объявляется полностью проверенным. Подробности и ограничения проверки — [RELEASE_CHECK.md](docs/RELEASE_CHECK.md).
 
@@ -266,6 +270,7 @@ Render Free засыпает после бездействия и имеет н�
 - [MCP lifecycle](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle), [stdio](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports), [tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
 - [Официальный Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 - [OpenRouter Tool Calling](https://openrouter.ai/docs/guides/features/tool-calling), [Ling free](https://openrouter.ai/inclusionai/ling-3.2-flash:free), [лимиты](https://openrouter.ai/docs/api/reference/limits)
+- [Yandex Responses API](https://aistudio.yandex.ru/en/docs/ai-studio/api/Responses/createResponse), [вызов функций](https://aistudio.yandex.ru/en/docs/ai-studio/operations/agents/create-function-text-agent), [аутентификация](https://aistudio.yandex.ru/en/docs/ai-studio/api-ref/authentication)
 - [Render Free](https://render.com/docs/free), [Docker](https://render.com/docs/docker), [переменные окружения](https://render.com/docs/configure-environment-variables)
 
 Формулы и условные правила генерации документированы в исходниках и [паспорте данных](docs/TEACHING_DATASET.md). Это методика учебного проекта, не банковский или регуляторный стандарт.

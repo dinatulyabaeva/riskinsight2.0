@@ -25,6 +25,8 @@ class Settings:
     max_concurrent: int
     seed_loans: int
     llm_api_style: str = "openai"
+    llm_auth_scheme: str = "bearer"
+    llm_project: str = ""
 
     @classmethod
     def from_env(cls):
@@ -32,8 +34,14 @@ class Settings:
         if mode not in {"demo", "llm"}:
             raise ValueError("APP_MODE должен быть demo или llm")
         api_style = os.getenv("LLM_API_STYLE", "openai").lower()
-        if api_style not in {"openai", "ollama"}:
-            raise ValueError("LLM_API_STYLE должен быть openai или ollama")
+        if api_style not in {"openai", "ollama", "responses"}:
+            raise ValueError("LLM_API_STYLE должен быть openai, ollama или responses")
+        auth_scheme = os.getenv("LLM_AUTH_SCHEME", "bearer").strip().lower()
+        if auth_scheme not in {"bearer", "api-key"}:
+            raise ValueError("LLM_AUTH_SCHEME должен быть bearer или api-key")
+        project = os.getenv("LLM_PROJECT", "").strip()
+        if any(ord(char) < 32 or ord(char) == 127 for char in project):
+            raise ValueError("Некорректный LLM_PROJECT")
         base = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
         u = urlparse(base)
         if u.scheme not in {"https", "http"} or not u.hostname or u.username or u.password:
@@ -45,6 +53,8 @@ class Settings:
             db_path=Path(os.getenv("DATABASE_PATH", str(ROOT / "data/portfolio.sqlite"))).resolve(),
             mode=mode,
             llm_api_style=api_style,
+            llm_auth_scheme=auth_scheme,
+            llm_project=project,
             llm_base_url=base,
             llm_api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
             llm_model=os.getenv("LLM_MODEL", ""),

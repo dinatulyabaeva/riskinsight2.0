@@ -24,7 +24,7 @@ import uuid
 
 import httpx
 
-from app.agent import AgentError, ChatCompletionsProvider, ChatRequest, OllamaProvider, run_agent
+from app.agent import AgentError, ChatRequest, make_provider, run_agent
 from app.config import Settings
 from app.conversations import ConversationStore
 from app.datasets import DatasetStore
@@ -364,7 +364,7 @@ async def evaluate(args):
                         "No automatic retry of failed cases, model switching, or fabricated passing answers."], "results": []}
     actual_provider = None
     if args.provider == "live":
-        raw = OllamaProvider(settings) if settings.llm_api_style == "ollama" else ChatCompletionsProvider(settings)
+        raw = make_provider(settings)
         actual_provider = BudgetProvider(raw, args.max_llm_requests)
     with tempfile.TemporaryDirectory(prefix="riskinsight-acceptance-") as temporary:
         path = Path(temporary) / "portfolio.sqlite"
