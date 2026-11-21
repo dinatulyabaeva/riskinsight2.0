@@ -4,10 +4,8 @@
 
 - Сервис: **https://riskinsight.onrender.com**. Развёрнутая версия проверяется отдельно от кода; `/api/health` показывает версию и `build_commit`.
 - Исходный код: **https://github.com/dinatulyabaeva/riskinsight2.0**.
-- Презентация: **https://riskinsight.onrender.com/presentation**; [HTML-файл](docs/presentation.html).
-- [Соответствие замечаниям преподавателя](docs/TEACHER_CRITERIA.md), [фактические проверки поставки](docs/RELEASE_CHECK.md).
 
-Для входа нужен `APP_ACCESS_TOKEN`, который владелец сообщает проверяющему отдельно. Это не ключ модели. Наличие ссылки и `HTTP 200 /api/health` сами по себе не подтверждают успешный анализ с живой LLM.
+Для входа нужен `APP_ACCESS_TOKEN`.
 
 ## 1. Задача, пользователь и границы MVP
 
@@ -263,14 +261,4 @@ try {
 
 Render Free засыпает после бездействия и имеет непостоянный локальный диск. Бесплатный OpenRouter имеет квоты и может вернуть 429/503. Приложение показывает ошибку и частичный MCP-журнал; не изображает успешный AI-анализ при отказе модели. Гарантированная работа 24/7 не заявляется.
 
-Данные учебные, PD/LGD не откалиброваны, когорта упрощённая. Стресс не прогноз, вклад не причина, EL не резерв. Система не должна использоваться для индивидуальных кредитных решений. Не загружайте реальные персональные/банковские данные в общую учебную среду. Не публикуйте токены и пользовательские загрузки в Git.
-
-## 10. Источники
-
-- [MCP lifecycle](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle), [stdio](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports), [tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
-- [Официальный Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [OpenRouter Tool Calling](https://openrouter.ai/docs/guides/features/tool-calling), [Ling free](https://openrouter.ai/inclusionai/ling-3.2-flash:free), [лимиты](https://openrouter.ai/docs/api/reference/limits)
-- [Yandex Responses API](https://aistudio.yandex.ru/en/docs/ai-studio/api/Responses/createResponse), [вызов функций](https://aistudio.yandex.ru/en/docs/ai-studio/operations/agents/create-function-text-agent), [аутентификация](https://aistudio.yandex.ru/en/docs/ai-studio/api-ref/authentication)
-- [Render Free](https://render.com/docs/free), [Docker](https://render.com/docs/docker), [переменные окружения](https://render.com/docs/configure-environment-variables)
-
-Формулы и условные правила генерации документированы в исходниках и [паспорте данных](docs/TEACHING_DATASET.md). Это методика учебного проекта, не банковский или регуляторный стандарт.
+Данные учебные, PD/LGD не откалиброваны, когорта упрощённая. Стресс не прогноз, вклад не причина, EL не резерв. Система не должна использоваться для индивидуальных кредитных решений. Не загружайте реальные персональные/банковские данные в общую учебную среду.
